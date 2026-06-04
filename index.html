@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>DesignLab Daily Tracker</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">D</div>
+        <div>
+          <h1>DesignLab</h1>
+          <p>Daily Tracker</p>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#" class="nav-link active">
+          <span>⌂</span>
+          Dashboard
+        </a>
+
+        <a href="#todayTasksSection" class="nav-link">
+          <span>☑</span>
+          Today’s Tasks
+        </a>
+
+        <a href="#taskHistorySection" class="nav-link">
+          <span>↺</span>
+          Previous Tasks
+        </a>
+
+        <a href="#" class="nav-link">
+          <span>🏷</span>
+          Categories
+        </a>
+
+        <a href="#" class="nav-link">
+          <span>⚑</span>
+          Priorities
+        </a>
+      </nav>
+
+      <div class="sidebar-card">
+        <div class="sidebar-card-icon">✦</div>
+        <h3>Stay productive.</h3>
+        <p>Track, update, and review your day with clarity.</p>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+
+      <!-- TOP BAR -->
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Workspace Dashboard</p>
+          <h2>DesignLab Daily Tracker</h2>
+        </div>
+
+        <div class="datetime-card">
+          <div>
+            <span class="datetime-label">Date</span>
+            <strong id="dateDisplay">Loading date...</strong>
+          </div>
+
+          <div class="datetime-divider"></div>
+
+          <div>
+            <span class="datetime-label">Live Time</span>
+            <strong id="timeDisplay">00:00:00</strong>
+          </div>
+        </div>
+      </header>
+
+      <!-- STATS -->
+      <section class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-icon blue">☑</div>
+          <div>
+            <p>Today’s Tasks</p>
+            <h3 id="todayTasksCount">0</h3>
+            <span>Total scheduled</span>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-icon green">✓</div>
+          <div>
+            <p>Completed</p>
+            <h3 id="completedCount">0</h3>
+            <span>Finished today</span>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-icon orange">◷</div>
+          <div>
+            <p>Pending</p>
+            <h3 id="pendingCount">0</h3>
+            <span>Needs action</span>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-icon red">⚑</div>
+          <div>
+            <p>High Priority</p>
+            <h3 id="highPriorityCount">0</h3>
+            <span>Focus items</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- TODAY TASKS -->
+      <section class="panel" id="todayTasksSection">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Current Day</p>
+            <h3>Today’s Tasks</h3>
+          </div>
+
+          <button class="primary-btn" id="addTaskBtn">
+            + Add Task
+          </button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search tasks..." />
+          </div>
+
+          <select id="categoryFilter"></select>
+          <select id="urgencyFilter"></select>
+          <select id="statusFilter"></select>
+
+          <input type="date" id="dateFilter" />
+        </div>
+
+        <div id="loadingState" class="loading-state">
+          Loading tasks...
+        </div>
+
+        <div class="table-wrap">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Time Slot</th>
+                <th>Category</th>
+                <th>Urgency</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">☁</div>
+          <h4>No tasks found.</h4>
+          <p>Add a new task or adjust your filters.</p>
+        </div>
+      </section>
+
+      <!-- TASK HISTORY -->
+      <section class="panel history-panel" id="taskHistorySection">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Archive</p>
+            <h3>Previous Tasks</h3>
+          </div>
+
+          <span class="subtle-note">Showing your latest previous records</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="task-table history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Task</th>
+                <th>Category</th>
+                <th>Urgency</th>
+                <th>Status</th>
+                <th>Completed On</th>
+              </tr>
+            </thead>
+
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ADD / EDIT MODAL -->
+  <div class="modal" id="taskModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Task Details</p>
+          <h3 id="modalTitle">Add New Task</h3>
+        </div>
+
+        <button class="close-btn" id="closeModalBtn">×</button>
+      </div>
+
+      <form id="taskForm" class="task-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="taskDate">Date</label>
+            <input type="date" id="taskDate" required />
+          </div>
+
+          <div class="form-group">
+            <label for="taskTime">Time Slot</label>
+            <input type="time" id="taskTime" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="taskName">Task Name</label>
+          <input
+            type="text"
+            id="taskName"
+            placeholder="Example: DesignLab Daily Post"
+            required
+          />
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="taskCategory">Category</label>
+            <select id="taskCategory"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="taskUrgency">Urgency</label>
+            <select id="taskUrgency"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="taskStatus">Status</label>
+          <select id="taskStatus"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="taskRemarks">Remarks</label>
+          <textarea
+            id="taskRemarks"
+            rows="3"
+            placeholder="Add notes, schedule details, or reminders..."
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelTaskBtn">
+            Cancel
+          </button>
+
+          <button type="submit" class="primary-btn">
+            Save Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

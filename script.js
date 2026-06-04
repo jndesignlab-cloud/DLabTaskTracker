@@ -4,7 +4,7 @@
    Frontend controller for HTML + CSS + Apps Script backend
 ====================================================== */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyeEk4oWWDbiIrd1BaWNW-I2oFyGPX-_1ty-Hw0uH7roDfvFlk5wniR-fs4bQE_hbUa/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxlo1kTf-oLJZw4K2K6id5zneynwjln66f98n6EETF2kySwpta3a45zYT_2K_FJNNXN/exec";
 
 /* =========================
    App State

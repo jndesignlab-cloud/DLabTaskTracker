@@ -1,743 +1,289 @@
-/* ======================================================
-   DesignLab Daily Tracker
-   script.js
-   Frontend controller for HTML + CSS + Apps Script backend
-====================================================== */
+const CONFIG = window.DLAB_CONFIG || {};
+const API_URL = CONFIG.apiUrl || "";
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxlo1kTf-oLJZw4K2K6id5zneynwjln66f98n6EETF2kySwpta3a45zYT_2K_FJNNXN/exec";
-
-/* =========================
-   App State
-========================= */
-
-let tasks = [];
+let selectedDateTasks = [];
+let allTasks = [];
 let editingTaskId = null;
 
-const categoryOptions = [
-  "PERSONAL",
-  "PAGE",
-  "BUSINESS",
-  "WORK",
-  "LEISURE"
-];
+const categoryOptions = ["PERSONAL", "PAGE", "BUSINESS", "WORK", "LEISURE"];
+const urgencyOptions = ["Today’s Priority", "High Priority", "Weekly Task", "Daily Task", "Low Priority"];
+const statusOptions = ["Pending", "In Progress", "Completed", "Cancelled"];
 
-const urgencyOptions = [
-  "Today’s Priority",
-  "High Priority",
-  "Weekly Task",
-  "Daily Task",
-  "Low Priority"
-];
+const $ = id => document.getElementById(id);
 
-const statusOptions = [
-  "Pending",
-  "In Progress",
-  "Completed",
-  "Cancelled"
-];
-
-/* =========================
-   DOM Elements
-========================= */
-
-const dateDisplay = document.getElementById("dateDisplay");
-const timeDisplay = document.getElementById("timeDisplay");
-
-const todayTasksCount = document.getElementById("todayTasksCount");
-const completedCount = document.getElementById("completedCount");
-const pendingCount = document.getElementById("pendingCount");
-const highPriorityCount = document.getElementById("highPriorityCount");
-
-const taskTableBody = document.getElementById("taskTableBody");
-const historyTableBody = document.getElementById("historyTableBody");
-
-const searchInput = document.getElementById("searchInput");
-const categoryFilter = document.getElementById("categoryFilter");
-const urgencyFilter = document.getElementById("urgencyFilter");
-const statusFilter = document.getElementById("statusFilter");
-const dateFilter = document.getElementById("dateFilter");
-
-const addTaskBtn = document.getElementById("addTaskBtn");
-const taskModal = document.getElementById("taskModal");
-const closeModalBtn = document.getElementById("closeModalBtn");
-const cancelTaskBtn = document.getElementById("cancelTaskBtn");
-const taskForm = document.getElementById("taskForm");
-const modalTitle = document.getElementById("modalTitle");
-
-const taskDateInput = document.getElementById("taskDate");
-const taskTimeInput = document.getElementById("taskTime");
-const taskNameInput = document.getElementById("taskName");
-const taskCategoryInput = document.getElementById("taskCategory");
-const taskUrgencyInput = document.getElementById("taskUrgency");
-const taskStatusInput = document.getElementById("taskStatus");
-const taskRemarksInput = document.getElementById("taskRemarks");
-
-const emptyState = document.getElementById("emptyState");
-const loadingState = document.getElementById("loadingState");
-
-/* =========================
-   Initial Load
-========================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-  initializeApp();
-});
+document.addEventListener("DOMContentLoaded", initializeApp);
 
 function initializeApp() {
+  applyConfig();
   setupCurrentDate();
   setupLiveClock();
   setupDropdowns();
   setupEventListeners();
-  loadTasks();
+  loadAllData();
 }
 
-/* =========================
-   Date and Time
-========================= */
+function applyConfig() {
+  document.title = CONFIG.appName || "DesignLab Daily Tracker";
+  $("footerOwner").textContent = CONFIG.owner || "DesignLab Creative Studio";
+  $("footerVersion").textContent = `Version ${CONFIG.version || "1.1.0"}`;
+  const links = CONFIG.links || {};
+  $("dashboardLink").href = links.dashboard || "./";
+  setExternalLink("socialPlannerLink", links.socialMediaPlanner);
+  setExternalLink("portfolioViewerLink", links.portfolioViewer);
+  setExternalLink("portfolioAdminLink", links.portfolioAdmin);
+}
+
+function setExternalLink(id, url) {
+  const el = $(id);
+  if (!url || url.startsWith("PASTE_")) {
+    el.href = "#";
+    el.addEventListener("click", event => {
+      event.preventDefault();
+      showToast("Add this link in config.js first.", "error");
+    });
+    return;
+  }
+  el.href = url;
+}
 
 function setupCurrentDate() {
   const today = new Date();
-  const formattedDate = today.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
-
-  if (dateDisplay) {
-    dateDisplay.textContent = formattedDate;
-  }
-
-  if (dateFilter) {
-    dateFilter.value = formatDateForInput(today);
-  }
-
-  if (taskDateInput) {
-    taskDateInput.value = formatDateForInput(today);
-  }
+  $("dateDisplay").textContent = today.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  $("dateFilter").value = formatDateForInput(today);
+  $("taskDate").value = formatDateForInput(today);
 }
 
 function setupLiveClock() {
-  updateClock();
-  setInterval(updateClock, 1000);
+  const tick = () => $("timeDisplay").textContent = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  tick(); setInterval(tick, 1000);
 }
-
-function updateClock() {
-  const now = new Date();
-
-  const formattedTime = now.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-
-  if (timeDisplay) {
-    timeDisplay.textContent = formattedTime;
-  }
-}
-
-function formatDateForInput(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateForDisplay(dateString) {
-  if (!dateString) return "No date";
-
-  const date = new Date(`${dateString}T00:00:00`);
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
-
-/* =========================
-   Dropdown Setup
-========================= */
 
 function setupDropdowns() {
-  populateSelect(categoryFilter, ["All Categories", ...categoryOptions]);
-  populateSelect(urgencyFilter, ["All Urgencies", ...urgencyOptions]);
-  populateSelect(statusFilter, ["All Status", ...statusOptions]);
-
-  populateSelect(taskCategoryInput, categoryOptions);
-  populateSelect(taskUrgencyInput, urgencyOptions);
-  populateSelect(taskStatusInput, statusOptions);
+  populateSelect($("categoryFilter"), ["All Categories", ...categoryOptions]);
+  populateSelect($("urgencyFilter"), ["All Urgencies", ...urgencyOptions]);
+  populateSelect($("statusFilter"), ["All Status", ...statusOptions]);
+  populateSelect($("taskCategory"), categoryOptions);
+  populateSelect($("taskUrgency"), urgencyOptions);
+  populateSelect($("taskStatus"), statusOptions);
 }
 
-function populateSelect(selectElement, options) {
-  if (!selectElement) return;
-
-  selectElement.innerHTML = "";
-
-  options.forEach(option => {
-    const optionElement = document.createElement("option");
-    optionElement.value = option;
-    optionElement.textContent = option;
-    selectElement.appendChild(optionElement);
-  });
+function populateSelect(select, options) {
+  select.innerHTML = "";
+  options.forEach(value => select.add(new Option(value, value)));
 }
-
-/* =========================
-   Event Listeners
-========================= */
 
 function setupEventListeners() {
-  if (addTaskBtn) {
-    addTaskBtn.addEventListener("click", openAddModal);
-  }
-
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener("click", closeModal);
-  }
-
-  if (cancelTaskBtn) {
-    cancelTaskBtn.addEventListener("click", closeModal);
-  }
-
-  if (taskForm) {
-    taskForm.addEventListener("submit", handleTaskSubmit);
-  }
-
-  if (searchInput) {
-    searchInput.addEventListener("input", renderTasks);
-  }
-
-  if (categoryFilter) {
-    categoryFilter.addEventListener("change", renderTasks);
-  }
-
-  if (urgencyFilter) {
-    urgencyFilter.addEventListener("change", renderTasks);
-  }
-
-  if (statusFilter) {
-    statusFilter.addEventListener("change", renderTasks);
-  }
-
-  if (dateFilter) {
-    dateFilter.addEventListener("change", loadTasks);
-  }
-
-  window.addEventListener("click", event => {
-    if (event.target === taskModal) {
-      closeModal();
-    }
-  });
+  $("addTaskBtn").addEventListener("click", openAddModal);
+  $("closeModalBtn").addEventListener("click", closeModal);
+  $("cancelTaskBtn").addEventListener("click", closeModal);
+  $("taskForm").addEventListener("submit", handleTaskSubmit);
+  ["searchInput", "categoryFilter", "urgencyFilter", "statusFilter"].forEach(id => $(id).addEventListener(id === "searchInput" ? "input" : "change", renderTasks));
+  $("dateFilter").addEventListener("change", loadSelectedDateTasks);
+  $("historySearchInput").addEventListener("input", renderTaskHistory);
+  $("historyStatusFilter").addEventListener("change", renderTaskHistory);
+  $("archiveToggle").addEventListener("click", toggleArchive);
+  $("viewPendingBtn").addEventListener("click", showAllPendingQueue);
+  $("refreshBtn").addEventListener("click", loadAllData);
+  $("statsBtn").addEventListener("click", openStatsDrawer);
+  $("closeStatsBtn").addEventListener("click", closeStatsDrawer);
+  $("drawerBackdrop").addEventListener("click", closeStatsDrawer);
+  window.addEventListener("click", event => { if (event.target === $("taskModal")) closeModal(); });
 }
 
-/* =========================
-   API Helpers
-========================= */
-
 async function apiGet(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
-  const url = `${API_URL}?${queryString}`;
-
-  const response = await fetch(url);
+  ensureApiUrl();
+  const response = await fetch(`${API_URL}?${new URLSearchParams(params)}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
 
 async function apiPost(payload = {}) {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-
+  ensureApiUrl();
+  const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
 
-/* =========================
-   Load Tasks
-========================= */
+function ensureApiUrl() {
+  if (!API_URL || API_URL.startsWith("PASTE_")) throw new Error("Add your Apps Script URL in config.js.");
+}
 
-async function loadTasks() {
+async function loadAllData() {
   showLoading(true);
-
   try {
-    const selectedDate = dateFilter ? dateFilter.value : formatDateForInput(new Date());
-
-    const result = await apiGet({
-      action: "getTasks",
-      date: selectedDate
-    });
-
-    if (!result.success) {
-      throw new Error(result.message || "Failed to load tasks.");
-    }
-
-    tasks = result.tasks || [];
-
-    renderDashboardStats();
-    renderTasks();
-    loadTaskHistory();
-
+    const result = await apiGet({ action: "getTasks" });
+    if (!result.success) throw new Error(result.message || "Failed to load tasks.");
+    allTasks = result.tasks || [];
+    selectedDateTasks = allTasks.filter(task => task.date === $("dateFilter").value);
+    renderEverything();
+    $("lastRefreshed").textContent = `Last refreshed: ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    showToast("Dashboard refreshed.", "success");
   } catch (error) {
     console.error(error);
-    showToast("Could not load tasks. Please check your Apps Script URL.", "error");
-  } finally {
-    showLoading(false);
-  }
+    showToast(error.message || "Could not load tasks.", "error");
+  } finally { showLoading(false); }
 }
 
-/* =========================
-   Load Previous Tasks
-========================= */
-
-async function loadTaskHistory() {
-  if (!historyTableBody) return;
-
-  try {
-    const result = await apiGet({
-      action: "getTasks"
-    });
-
-    if (!result.success) {
-      throw new Error(result.message || "Failed to load task history.");
-    }
-
-    const allTasks = result.tasks || [];
-    const today = dateFilter ? dateFilter.value : formatDateForInput(new Date());
-
-    const previousTasks = allTasks
-      .filter(task => task.date < today)
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 8);
-
-    renderTaskHistory(previousTasks);
-
-  } catch (error) {
-    console.error(error);
-  }
+function loadSelectedDateTasks() {
+  selectedDateTasks = allTasks.filter(task => task.date === $("dateFilter").value);
+  renderDashboardStats();
+  renderTasks();
 }
 
-/* =========================
-   Render Dashboard Stats
-========================= */
+function renderEverything() {
+  renderDashboardStats();
+  renderTasks();
+  renderPendingAlert();
+  renderTaskHistory();
+  renderStats();
+}
 
 function renderDashboardStats() {
-  const total = tasks.length;
-  const completed = tasks.filter(task => task.status === "Completed").length;
-  const pending = tasks.filter(task => task.status === "Pending").length;
-  const highPriority = tasks.filter(task =>
-    task.urgency === "Today’s Priority" || task.urgency === "High Priority"
-  ).length;
-
-  if (todayTasksCount) todayTasksCount.textContent = total;
-  if (completedCount) completedCount.textContent = completed;
-  if (pendingCount) pendingCount.textContent = pending;
-  if (highPriorityCount) highPriorityCount.textContent = highPriority;
+  const completed = selectedDateTasks.filter(t => t.status === "Completed").length;
+  const pending = selectedDateTasks.filter(t => t.status === "Pending").length;
+  const high = selectedDateTasks.filter(t => ["Today’s Priority", "High Priority"].includes(t.urgency) && t.status !== "Completed").length;
+  $("todayTasksCount").textContent = selectedDateTasks.length;
+  $("completedCount").textContent = completed;
+  $("pendingCount").textContent = pending;
+  $("highPriorityCount").textContent = high;
 }
 
-/* =========================
-   Render Tasks
-========================= */
+function getPendingTasks() {
+  return allTasks.filter(task => ["Pending", "In Progress"].includes(task.status)).sort((a, b) => {
+    const urgencyRank = { "Today’s Priority": 0, "High Priority": 1, "Daily Task": 2, "Weekly Task": 3, "Low Priority": 4 };
+    return (urgencyRank[a.urgency] ?? 9) - (urgencyRank[b.urgency] ?? 9) || new Date(a.date) - new Date(b.date);
+  });
+}
+
+function renderPendingAlert() {
+  const pending = getPendingTasks();
+  $("allPendingCount").textContent = pending.length;
+  const preview = pending.slice(0, 3).map(t => t.taskName).join(" • ");
+  $("pendingAlertText").textContent = pending.length ? `Next to work on: ${preview}${pending.length > 3 ? "…" : ""}` : "You have no pending tasks. Great work!";
+  $("pendingAlert").classList.toggle("clear", pending.length === 0);
+}
+
+function showAllPendingQueue() {
+  $("dateFilter").value = "";
+  selectedDateTasks = getPendingTasks();
+  $("statusFilter").value = "All Status";
+  renderDashboardStats();
+  renderTasks();
+  $("todayTasksSection").scrollIntoView({ behavior: "smooth" });
+  showToast("Showing pending tasks from all dates.", "success");
+}
 
 function renderTasks() {
-  if (!taskTableBody) return;
-
-  const filteredTasks = getFilteredTasks();
-
-  taskTableBody.innerHTML = "";
-
-  if (filteredTasks.length === 0) {
-    showEmptyState(true);
-    return;
-  }
-
-  showEmptyState(false);
-
-  filteredTasks.forEach(task => {
+  const body = $("taskTableBody");
+  const filtered = getFilteredTasks();
+  body.innerHTML = "";
+  $("emptyState").style.display = filtered.length ? "none" : "block";
+  filtered.forEach(task => {
     const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td>
-        <div class="task-name">${escapeHTML(task.taskName)}</div>
-        ${task.remarks ? `<div class="task-remarks">${escapeHTML(task.remarks)}</div>` : ""}
-      </td>
-
-      <td>${escapeHTML(task.timeSlot || "—")}</td>
-
-      <td>
-        <span class="pill category-${slugify(task.category)}">
-          ${escapeHTML(task.category)}
-        </span>
-      </td>
-
-      <td>
-        <span class="pill urgency-${slugify(task.urgency)}">
-          ${escapeHTML(task.urgency)}
-        </span>
-      </td>
-
-      <td>
-        <span class="status status-${slugify(task.status)}">
-          ${escapeHTML(task.status)}
-        </span>
-      </td>
-
-      <td>
-        <div class="action-buttons">
-          <button class="icon-btn edit" title="Edit task" onclick="openEditModal('${task.taskId}')">
-            ✎
-          </button>
-
-          <button class="icon-btn delete" title="Delete task" onclick="handleDeleteTask('${task.taskId}')">
-            🗑
-          </button>
-
-          <button class="icon-btn complete" title="Mark as completed" onclick="handleCompleteTask('${task.taskId}')">
-            ✓
-          </button>
-        </div>
-      </td>
-    `;
-
-    taskTableBody.appendChild(row);
+    row.innerHTML = `<td><div class="task-name">${escapeHTML(task.taskName)}</div>${task.remarks ? `<div class="task-remarks">${escapeHTML(task.remarks)}</div>` : ""}</td><td>${escapeHTML(task.timeSlot || "—")}</td><td><span class="pill category-${slugify(task.category)}">${escapeHTML(task.category)}</span></td><td><span class="pill urgency-${slugify(task.urgency)}">${escapeHTML(task.urgency)}</span></td><td><span class="status status-${slugify(task.status)}">${escapeHTML(task.status)}</span></td><td><div class="action-buttons"><button class="icon-btn edit" onclick="openEditModal('${task.taskId}')" title="Edit">✎</button><button class="icon-btn delete" onclick="handleDeleteTask('${task.taskId}')" title="Delete">⌫</button><button class="icon-btn complete" onclick="handleCompleteTask('${task.taskId}')" title="Complete">✓</button></div></td>`;
+    body.appendChild(row);
   });
 }
 
 function getFilteredTasks() {
-  let filtered = [...tasks];
-
-  const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
-  const selectedCategory = categoryFilter ? categoryFilter.value : "All Categories";
-  const selectedUrgency = urgencyFilter ? urgencyFilter.value : "All Urgencies";
-  const selectedStatus = statusFilter ? statusFilter.value : "All Status";
-
-  if (searchTerm) {
-    filtered = filtered.filter(task =>
-      task.taskName.toLowerCase().includes(searchTerm) ||
-      task.remarks.toLowerCase().includes(searchTerm) ||
-      task.category.toLowerCase().includes(searchTerm) ||
-      task.urgency.toLowerCase().includes(searchTerm)
-    );
-  }
-
-  if (selectedCategory !== "All Categories") {
-    filtered = filtered.filter(task => task.category === selectedCategory);
-  }
-
-  if (selectedUrgency !== "All Urgencies") {
-    filtered = filtered.filter(task => task.urgency === selectedUrgency);
-  }
-
-  if (selectedStatus !== "All Status") {
-    filtered = filtered.filter(task => task.status === selectedStatus);
-  }
-
+  let filtered = [...selectedDateTasks];
+  const term = $("searchInput").value.toLowerCase().trim();
+  if (term) filtered = filtered.filter(t => [t.taskName, t.remarks, t.category, t.urgency, t.status].join(" ").toLowerCase().includes(term));
+  if ($("categoryFilter").value !== "All Categories") filtered = filtered.filter(t => t.category === $("categoryFilter").value);
+  if ($("urgencyFilter").value !== "All Urgencies") filtered = filtered.filter(t => t.urgency === $("urgencyFilter").value);
+  if ($("statusFilter").value !== "All Status") filtered = filtered.filter(t => t.status === $("statusFilter").value);
   return filtered.sort((a, b) => convertTimeToMinutes(a.timeSlot) - convertTimeToMinutes(b.timeSlot));
 }
 
-/* =========================
-   Render Task History
-========================= */
+function toggleArchive() {
+  const content = $("archiveContent");
+  const willOpen = content.hidden;
+  content.hidden = !willOpen;
+  $("archiveToggle").setAttribute("aria-expanded", String(willOpen));
+  $("archiveChevron").textContent = willOpen ? "⌃" : "⌄";
+}
 
-function renderTaskHistory(historyTasks) {
-  if (!historyTableBody) return;
-
-  historyTableBody.innerHTML = "";
-
-  if (historyTasks.length === 0) {
-    historyTableBody.innerHTML = `
-      <tr>
-        <td colspan="6" class="empty-history">
-          No previous tasks found.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  historyTasks.forEach(task => {
+function renderTaskHistory() {
+  const body = $("historyTableBody");
+  const term = $("historySearchInput").value.toLowerCase().trim();
+  const status = $("historyStatusFilter").value;
+  let history = [...allTasks].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (term) history = history.filter(t => [t.taskName, t.remarks, t.category, t.urgency, t.status, t.date].join(" ").toLowerCase().includes(term));
+  if (status !== "All Status") history = history.filter(t => t.status === status);
+  body.innerHTML = history.length ? "" : `<tr><td colspan="6" class="empty-history">No matching archived tasks.</td></tr>`;
+  history.slice(0, 100).forEach(task => {
     const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td>${formatDateForDisplay(task.date)}</td>
-
-      <td>${escapeHTML(task.taskName)}</td>
-
-      <td>
-        <span class="pill category-${slugify(task.category)}">
-          ${escapeHTML(task.category)}
-        </span>
-      </td>
-
-      <td>
-        <span class="pill urgency-${slugify(task.urgency)}">
-          ${escapeHTML(task.urgency)}
-        </span>
-      </td>
-
-      <td>
-        <span class="status status-${slugify(task.status)}">
-          ${escapeHTML(task.status)}
-        </span>
-      </td>
-
-      <td>${escapeHTML(task.completedAt || "—")}</td>
-    `;
-
-    historyTableBody.appendChild(row);
+    row.innerHTML = `<td>${formatDateForDisplay(task.date)}</td><td>${escapeHTML(task.taskName)}</td><td><span class="pill category-${slugify(task.category)}">${escapeHTML(task.category)}</span></td><td><span class="pill urgency-${slugify(task.urgency)}">${escapeHTML(task.urgency)}</span></td><td><span class="status status-${slugify(task.status)}">${escapeHTML(task.status)}</span></td><td>${escapeHTML(task.completedAt || "—")}</td>`;
+    body.appendChild(row);
   });
 }
 
-/* =========================
-   Modal Handling
-========================= */
+function renderStats() {
+  const total = allTasks.length;
+  const completed = allTasks.filter(t => t.status === "Completed").length;
+  const pending = getPendingTasks().length;
+  const high = allTasks.filter(t => ["Today’s Priority", "High Priority"].includes(t.urgency)).length;
+  const rate = total ? Math.round((completed / total) * 100) : 0;
+  const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const completedWeek = allTasks.filter(t => t.status === "Completed" && t.completedAt && new Date(t.completedAt.replace(" ", "T")) >= weekStart).length;
+  const categoryCounts = allTasks.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + 1; return acc; }, {});
+  const topCategory = Object.entries(categoryCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || "—";
+  const activeDays = new Set(allTasks.map(t => t.date).filter(Boolean)).size;
+  $("statTotalTasks").textContent = total;
+  $("statTotalCompleted").textContent = completed;
+  $("statCurrentPending").textContent = pending;
+  $("statHighPriority").textContent = high;
+  $("statCompletionRate").textContent = `${rate}%`;
+  $("statCompletedWeek").textContent = completedWeek;
+  $("statTopCategory").textContent = topCategory;
+  $("statDailyAverage").textContent = activeDays ? (total / activeDays).toFixed(1) : "0";
+}
+
+function openStatsDrawer() { $("statsDrawer").classList.add("open"); $("drawerBackdrop").classList.add("show"); $("statsDrawer").setAttribute("aria-hidden", "false"); }
+function closeStatsDrawer() { $("statsDrawer").classList.remove("open"); $("drawerBackdrop").classList.remove("show"); $("statsDrawer").setAttribute("aria-hidden", "true"); }
 
 function openAddModal() {
-  editingTaskId = null;
-
-  if (modalTitle) {
-    modalTitle.textContent = "Add New Task";
-  }
-
-  if (taskForm) {
-    taskForm.reset();
-  }
-
-  if (taskDateInput) {
-    taskDateInput.value = dateFilter ? dateFilter.value : formatDateForInput(new Date());
-  }
-
-  if (taskStatusInput) {
-    taskStatusInput.value = "Pending";
-  }
-
-  openModal();
+  editingTaskId = null; $("modalTitle").textContent = "Add New Task"; $("taskForm").reset();
+  $("taskDate").value = $("dateFilter").value || formatDateForInput(new Date()); $("taskStatus").value = "Pending"; $("taskModal").classList.add("show");
 }
 
 function openEditModal(taskId) {
-  const task = tasks.find(item => item.taskId === taskId);
-
-  if (!task) {
-    showToast("Task not found.", "error");
-    return;
-  }
-
-  editingTaskId = taskId;
-
-  if (modalTitle) {
-    modalTitle.textContent = "Edit Task";
-  }
-
-  taskDateInput.value = task.date || "";
-  taskTimeInput.value = task.timeSlot || "";
-  taskNameInput.value = task.taskName || "";
-  taskCategoryInput.value = task.category || "WORK";
-  taskUrgencyInput.value = task.urgency || "Low Priority";
-  taskStatusInput.value = task.status || "Pending";
-  taskRemarksInput.value = task.remarks || "";
-
-  openModal();
+  const task = allTasks.find(t => t.taskId === taskId); if (!task) return showToast("Task not found.", "error");
+  editingTaskId = taskId; $("modalTitle").textContent = "Edit Task"; $("taskDate").value = task.date; $("taskTime").value = to24Hour(task.timeSlot); $("taskName").value = task.taskName; $("taskCategory").value = task.category; $("taskUrgency").value = task.urgency; $("taskStatus").value = task.status; $("taskRemarks").value = task.remarks || ""; $("taskModal").classList.add("show");
 }
 
-function openModal() {
-  if (taskModal) {
-    taskModal.classList.add("show");
-  }
-}
-
-function closeModal() {
-  if (taskModal) {
-    taskModal.classList.remove("show");
-  }
-
-  editingTaskId = null;
-}
-
-/* =========================
-   Add / Update Task
-========================= */
+function closeModal() { $("taskModal").classList.remove("show"); editingTaskId = null; }
 
 async function handleTaskSubmit(event) {
   event.preventDefault();
-
-  const payload = {
-    date: taskDateInput.value,
-    timeSlot: formatTimeFromInput(taskTimeInput.value),
-    taskName: taskNameInput.value.trim(),
-    category: taskCategoryInput.value,
-    urgency: taskUrgencyInput.value,
-    status: taskStatusInput.value,
-    remarks: taskRemarksInput.value.trim()
-  };
-
-  if (!payload.taskName) {
-    showToast("Please enter a task name.", "error");
-    return;
-  }
-
+  const payload = { date: $("taskDate").value, timeSlot: formatTimeFromInput($("taskTime").value), taskName: $("taskName").value.trim(), category: $("taskCategory").value, urgency: $("taskUrgency").value, status: $("taskStatus").value, remarks: $("taskRemarks").value.trim() };
+  if (!payload.taskName) return showToast("Please enter a task name.", "error");
   try {
-    let result;
-
-    if (editingTaskId) {
-      result = await apiPost({
-        action: "updateTask",
-        taskId: editingTaskId,
-        ...payload
-      });
-    } else {
-      result = await apiPost({
-        action: "addTask",
-        ...payload
-      });
-    }
-
-    if (!result.success) {
-      throw new Error(result.message || "Task save failed.");
-    }
-
-    showToast(editingTaskId ? "Task updated successfully." : "Task added successfully.", "success");
-
-    closeModal();
-    await loadTasks();
-
-  } catch (error) {
-    console.error(error);
-    showToast("Could not save task.", "error");
-  }
+    const result = await apiPost({ action: editingTaskId ? "updateTask" : "addTask", ...(editingTaskId ? { taskId: editingTaskId } : {}), ...payload });
+    if (!result.success) throw new Error(result.message || "Could not save task.");
+    closeModal(); await loadAllData();
+  } catch (error) { showToast(error.message, "error"); }
 }
-
-/* =========================
-   Delete Task
-========================= */
 
 async function handleDeleteTask(taskId) {
-  const confirmed = confirm("Delete this task? This cannot be undone.");
-
-  if (!confirmed) return;
-
-  try {
-    const result = await apiPost({
-      action: "deleteTask",
-      taskId
-    });
-
-    if (!result.success) {
-      throw new Error(result.message || "Delete failed.");
-    }
-
-    showToast("Task deleted successfully.", "success");
-    await loadTasks();
-
-  } catch (error) {
-    console.error(error);
-    showToast("Could not delete task.", "error");
-  }
+  if (!confirm("Delete this task? This cannot be undone.")) return;
+  try { const result = await apiPost({ action: "deleteTask", taskId }); if (!result.success) throw new Error(result.message); await loadAllData(); } catch (error) { showToast(error.message, "error"); }
 }
-
-/* =========================
-   Complete Task
-========================= */
 
 async function handleCompleteTask(taskId) {
-  try {
-    const result = await apiPost({
-      action: "completeTask",
-      taskId
-    });
-
-    if (!result.success) {
-      throw new Error(result.message || "Update failed.");
-    }
-
-    showToast("Task marked as completed.", "success");
-    await loadTasks();
-
-  } catch (error) {
-    console.error(error);
-    showToast("Could not update task.", "error");
-  }
+  try { const result = await apiPost({ action: "completeTask", taskId }); if (!result.success) throw new Error(result.message); await loadAllData(); } catch (error) { showToast(error.message, "error"); }
 }
 
-/* =========================
-   Helpers
-========================= */
+function formatDateForInput(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; }
+function formatDateForDisplay(value) { if (!value) return "—"; return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+function formatTimeFromInput(value) { if (!value) return ""; const [h,m] = value.split(":").map(Number); const d = new Date(); d.setHours(h,m,0,0); return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
+function to24Hour(value) { if (!value) return ""; const d = new Date(`2000-01-01 ${value}`); if (Number.isNaN(d.getTime())) return ""; return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
+function convertTimeToMinutes(value) { const d = new Date(`2000-01-01 ${value}`); return Number.isNaN(d.getTime()) ? 99999 : d.getHours()*60+d.getMinutes(); }
+function slugify(value) { return String(value || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+function escapeHTML(value) { return String(value || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+function showLoading(value) { $("loadingState").style.display = value ? "block" : "none"; }
+function showToast(message, type="success") { let toast = $("toast"); if (!toast) { toast = document.createElement("div"); toast.id = "toast"; document.body.appendChild(toast); } toast.className = `toast ${type} show`; toast.textContent = message; clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove("show"), 2800); }
 
-function formatTimeFromInput(value) {
-  if (!value) return "";
-
-  if (value.includes("AM") || value.includes("PM")) {
-    return value;
-  }
-
-  const [hours, minutes] = value.split(":");
-  const date = new Date();
-  date.setHours(Number(hours));
-  date.setMinutes(Number(minutes));
-
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
-function convertTimeToMinutes(timeString) {
-  if (!timeString) return 99999;
-
-  const date = new Date(`01/01/2000 ${timeString}`);
-
-  if (isNaN(date.getTime())) {
-    return 99999;
-  }
-
-  return date.getHours() * 60 + date.getMinutes();
-}
-
-function slugify(text) {
-  return String(text || "")
-    .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-function escapeHTML(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function showLoading(isLoading) {
-  if (!loadingState) return;
-
-  loadingState.style.display = isLoading ? "block" : "none";
-}
-
-function showEmptyState(isEmpty) {
-  if (!emptyState) return;
-
-  emptyState.style.display = isEmpty ? "block" : "none";
-}
-
-/* =========================
-   Toast Notification
-========================= */
-
-function showToast(message, type = "success") {
-  let toast = document.getElementById("toast");
-
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "toast";
-    document.body.appendChild(toast);
-  }
-
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  toast.classList.add("show");
-
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 3000);
-}
+window.openEditModal = openEditModal;
+window.handleDeleteTask = handleDeleteTask;
+window.handleCompleteTask = handleCompleteTask;

@@ -1,93 +1,101 @@
-# DesignLab Daily Tracker
+# DesignLab Task Tracker — Owner Login Edition
 
-A minimalist task dashboard for DesignLab Creative Studio, built with HTML, CSS, JavaScript, Google Sheets, Google Apps Script, and GitHub Pages.
+**Version 2.1.0**
 
-## Version
+A personal DesignLab task workspace with Supabase storage, one permanent owner account, persistent browser sessions, daily and weekly views, quick rescheduling, weekly summaries, an open-work queue, and a Google Sheets migration utility.
 
-**v1.1.0**
+## Login behavior
 
-## New in v1.1.0
+- Public username: `designlab`
+- Supabase Auth email used internally: `designlab@madebydesignlab.com`
+- The password is **not stored anywhere in the website files**.
+- After the first successful sign-in, Supabase restores the session automatically on normal visits.
+- The login screen returns only after signing out, clearing site data, using a new browser/device, or when the saved session is no longer valid.
+- Signing in again restores the same Supabase tasks because they belong to the permanent owner account.
 
-- Simplified sidebar links:
-  - Dashboard
-  - Social Media Planner
-  - Portfolio Viewer
-  - Portfolio Admin
-- Collapsible Previous Tasks archive
-- Search and status filtering inside the archive
-- Pending Work Queue showing incomplete tasks across all dates
-- Floating refresh button
-- Floating statistics dashboard
-- All-time statistics, including completion rate, completed tasks, pending tasks, high-priority tasks, completed-this-week count, most active category, and average tasks per active day
-- Footer versioning and ownership details
-- Central `config.js` for the API URL and external links
+## 1. Run the database schema
 
-## Files
+1. Open the Supabase project.
+2. Go to **SQL Editor**.
+3. Run the full contents of `supabase-schema.sql`.
 
-- `index.html` — main interface
-- `style.css` — DesignLab visual system
-- `script.js` — frontend logic
-- `config.js` — links, app details, version, and Apps Script URL
-- `Code.gs` — Google Apps Script backend
-- `README.md` — setup and project documentation
+## 2. Create the single owner account
 
-## Setup
+In Supabase Dashboard:
 
-### 1. Google Sheet
+1. Open **Authentication → Users**.
+2. Add a new user manually.
+3. Use `designlab@madebydesignlab.com` as the email.
+4. Use your chosen DesignLab password.
+5. Mark or create the user as email-confirmed so it can sign in immediately.
+6. Open **Authentication → Sign In / Providers**.
+7. Keep Email/Password enabled.
+8. Disable **Allow new users to sign up** after the owner account exists.
+9. Disable **Allow anonymous sign-ins** because this version no longer uses anonymous users.
 
-Create a sheet tab named `Tasks` with these headers:
+The website displays only the username `designlab`; the internal email is never requested from the user.
 
-```text
-Task ID | Date | Time Slot | Task Name | Category | Urgency | Status | Remarks | Created At | Updated At | Completed At
-```
+## 3. Frontend configuration
 
-### 2. Apps Script
+`config.js` is already configured with:
 
-Open **Extensions → Apps Script**, replace the code with `Code.gs`, then deploy it as a Web App.
+- The supplied Supabase project URL
+- The supplied browser-safe publishable key
+- Owner username `designlab`
+- Internal owner Auth email `designlab@madebydesignlab.com`
 
-Recommended deployment settings:
+Never place a `service_role`, secret, server key, or account password in `config.js` or any other frontend file.
 
-- Execute as: **Me**
-- Who has access: **Anyone**
+## 4. Deploy to GitHub Pages
 
-When updating the script later, edit the existing deployment and select **New version** so the Web App URL remains unchanged.
-
-### 3. Configuration
-
-Open `config.js` and replace:
-
-```js
-apiUrl: "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"
-```
-
-Also add the correct URLs for the Social Media Planner and Portfolio Admin.
-
-### 4. GitHub Pages
-
-Upload the frontend files to your GitHub repository:
+Upload these files to the repository root:
 
 - `index.html`
 - `style.css`
 - `script.js`
 - `config.js`
+- `migrate.html`
+- `migrate.js`
+- `supabase-schema.sql`
 - `README.md`
+- `UPGRADE-NOTES.md`
 
-Then enable GitHub Pages using the `main` branch and `/root` folder.
+## 5. Migrate the old Google Sheets tasks
 
-## Statistics
+1. Keep the old Apps Script web app online temporarily.
+2. Sign in to the new tracker as `designlab`.
+3. Open `migrate.html` on the same website and browser.
+4. Preview the old records.
+5. Click **Migrate Tasks**.
+6. Verify the task count and spot-check dates, statuses, times, and remarks.
+7. Retire the old Apps Script endpoint only after verification.
 
-The statistics drawer is calculated from all task records loaded from Google Sheets. Completion rate is:
+The importer stores the old Task ID in `legacy_task_id` and uses an upsert, so rerunning it updates matching records instead of duplicating them.
 
-```text
-Completed Tasks ÷ Total Tasks × 100
-```
+## Main tracker features
 
-## Notes
+- Daily and weekly task modes
+- Monday-to-Sunday weekly board
+- Desktop drag-and-drop between dates
+- Previous day, today, and next day task controls
+- Bulk move unfinished daily tasks to tomorrow
+- Open-work queue with multi-select transfers
+- Weekly completion and workload summary
+- Category and day breakdowns
+- Overdue and priority indicators
+- Duplicate, reopen, complete, edit, and delete actions
+- Date-range Supabase loading
+- Lazy-loaded task history
+- Optional Realtime refreshes
+- Row Level Security based on the authenticated owner ID
 
-- Do not expose private credentials in `config.js`.
-- The Apps Script Web App URL is expected to be publicly callable because the frontend runs on GitHub Pages.
-- For a client-facing commercial version, consider adding authentication, per-user data separation, validation, backups, and a privacy notice.
+## Keyboard shortcuts
 
-## Credits
+- `N` — add a task
+- `D` — daily view
+- `W` — weekly view
+- `←` / `→` — previous or next period when not typing
 
-Developed for **DesignLab Creative Studio**.
+## Recovery behavior
+
+Clearing browsing history alone normally does not remove the session. Clearing cookies or site data does. When that happens, sign in again with the same owner credentials and the existing tasks return from Supabase.

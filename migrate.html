@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DesignLab Task Migration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="migration-page">
+    <section class="migration-card">
+      <div class="auth-brand">
+        <div class="brand-mark">D</div>
+        <div><h1>DesignLab</h1><p>Task Migration</p></div>
+      </div>
+
+      <p class="eyebrow">Google Sheets → Supabase</p>
+      <h2>Import your existing tasks</h2>
+      <p class="migration-copy">This utility reads the existing Apps Script endpoint, previews the records, and imports them into the signed-in DesignLab owner account. Existing legacy IDs are updated instead of duplicated.</p>
+
+      <div class="migration-status-grid">
+        <article><span>Owner Account</span><strong id="migrationAccount">Checking…</strong></article>
+        <article><span>Legacy Source</span><strong id="legacySourceStatus">Checking…</strong></article>
+        <article><span>Tasks Found</span><strong id="legacyTaskCount">0</strong></article>
+        <article><span>Imported</span><strong id="migratedTaskCount">0</strong></article>
+      </div>
+
+      <div class="migration-actions">
+        <button class="secondary-btn" id="previewLegacyBtn">Preview Legacy Tasks</button>
+        <button class="primary-btn" id="migrateTasksBtn" disabled>Migrate Tasks</button>
+        <a class="secondary-btn link-btn" href="index.html">Back to Tracker</a>
+      </div>
+
+      <div class="migration-progress" id="migrationProgress" hidden>
+        <div class="progress-track"><span id="migrationProgressBar"></span></div>
+        <p id="migrationProgressText">Preparing migration…</p>
+      </div>
+
+      <div class="migration-preview" id="migrationPreview">
+        <div class="empty-state show"><div class="empty-icon">⇄</div><h4>No preview loaded.</h4><p>Sign in on the main tracker first, then return here to preview the old records.</p></div>
+      </div>
+
+      <div class="migration-note">
+        <strong>Before retiring Google Sheets:</strong>
+        <span>Confirm the imported task count and spot-check several dates in the new daily and weekly views.</span>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="migrate.js"></script>
+</body>
+</html>

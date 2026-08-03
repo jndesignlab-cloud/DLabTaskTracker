@@ -3,6 +3,7 @@ const categoryOptions = ["PERSONAL", "PAGE", "BUSINESS", "WORK", "LEISURE"];
 const urgencyOptions = ["Today’s Priority", "High Priority", "Weekly Task", "Daily Task", "Low Priority"];
 const statusOptions = ["Pending", "In Progress", "Completed", "Cancelled"];
 const openStatuses = ["Pending", "In Progress"];
+const taskDefaultsStorageKey = "dlab-task-defaults-v1";
 
 const state = {
   client: null,
@@ -150,7 +151,7 @@ function validateSupabaseConfig() {
 function applyConfig() {
   document.title = CONFIG.appName || "DesignLab Task Tracker";
   $("footerOwner").textContent = CONFIG.owner || "DesignLab Creative Studio";
-  $("footerVersion").textContent = `Version ${CONFIG.version || "2.1.0"}`;
+  $("footerVersion").textContent = `Version ${CONFIG.version || "2.2.0"}`;
 
   const links = CONFIG.links || {};
   $("dashboardLink").href = links.dashboard || "./";
@@ -216,6 +217,18 @@ function setupEventListeners() {
   $("closeModalBtn").addEventListener("click", closeTaskModal);
   $("cancelTaskBtn").addEventListener("click", closeTaskModal);
   $("taskForm").addEventListener("submit", handleTaskSubmit);
+  $("taskForm").addEventListener("keydown", handleTaskFormShortcut);
+  $("taskTime").addEventListener("input", () => {
+    delete $("taskTime").dataset.selectedPreset;
+    updateTaskPresetStates();
+  });
+  $("taskDate").addEventListener("change", updateTaskPresetStates);
+  document.querySelectorAll("[data-time-preset]").forEach(button => {
+    button.addEventListener("click", () => setTaskTimePreset(button.dataset.timePreset));
+  });
+  document.querySelectorAll("[data-date-preset]").forEach(button => {
+    button.addEventListener("click", () => setTaskDatePreset(button.dataset.datePreset));
+  });
 
   ["searchInput", "categoryFilter", "urgencyFilter", "statusFilter"].forEach(id => {
     $(id).addEventListener(id === "searchInput" ? "input" : "change", renderAllViews);
@@ -240,6 +253,10 @@ function setupEventListeners() {
   });
 
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      if ($("taskModal").classList.contains("show")) return closeTaskModal();
+      if ($("queueModal").classList.contains("show")) return closeQueueModal();
+    }
     if (!state.user || isTypingTarget(event.target)) return;
     if (event.key.toLowerCase() === "n") openAddModal(state.focusDate);
     if (event.key.toLowerCase() === "d") setView("daily");
@@ -679,13 +696,18 @@ function updatePeriodHeading() {
 
 function openAddModal(date) {
   if (!state.user) return;
+  const defaults = getTaskDefaults();
   state.editingTaskId = null;
   $("modalTitle").textContent = "Add New Task";
   $("taskForm").reset();
   $("taskDate").value = date || state.focusDate;
-  $("taskCategory").value = "WORK";
-  $("taskUrgency").value = "Low Priority";
+  $("taskTime").value = "";
+  delete $("taskTime").dataset.selectedPreset;
+  $("taskCategory").value = categoryOptions.includes(defaults.category) ? defaults.category : "WORK";
+  $("taskUrgency").value = urgencyOptions.includes(defaults.urgency) ? defaults.urgency : "Low Priority";
   $("taskStatus").value = "Pending";
+  $("saveAndAddAnotherBtn").hidden = false;
+  updateTaskPresetStates();
   openModal($("taskModal"));
   window.setTimeout(() => $("taskName").focus(), 40);
 }
@@ -697,17 +719,92 @@ function openEditModal(taskId) {
   $("modalTitle").textContent = "Edit Task";
   $("taskDate").value = task.date;
   $("taskTime").value = task.time || "";
+  delete $("taskTime").dataset.selectedPreset;
   $("taskName").value = task.taskName;
   $("taskCategory").value = task.category;
   $("taskUrgency").value = task.urgency;
   $("taskStatus").value = task.status;
   $("taskRemarks").value = task.remarks || "";
+  $("saveAndAddAnotherBtn").hidden = true;
+  updateTaskPresetStates();
   openModal($("taskModal"));
 }
 
 function closeTaskModal() {
   closeModal($("taskModal"));
   state.editingTaskId = null;
+  delete $("taskTime").dataset.selectedPreset;
+}
+
+function handleTaskFormShortcut(event) {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    $("taskForm").requestSubmit($("saveTaskBtn"));
+  }
+}
+
+function setTaskTimePreset(preset) {
+  const input = $("taskTime");
+  if (preset === "clear") {
+    input.value = "";
+    delete input.dataset.selectedPreset;
+  } else if (preset === "now") {
+    input.value = getCurrentTimeForInput();
+    input.dataset.selectedPreset = "now";
+  } else {
+    input.value = preset;
+    input.dataset.selectedPreset = preset;
+  }
+  updateTaskPresetStates();
+}
+
+function setTaskDatePreset(preset) {
+  const today = formatDateForInput(new Date());
+  $("taskDate").value = preset === "tomorrow" ? addDays(today, 1) : today;
+  updateTaskPresetStates();
+}
+
+function updateTaskPresetStates() {
+  const timeValue = $("taskTime").value;
+  const selectedTimePreset = $("taskTime").dataset.selectedPreset || "";
+  document.querySelectorAll("[data-time-preset]").forEach(button => {
+    const preset = button.dataset.timePreset;
+    const isActive = preset === "now"
+      ? selectedTimePreset === "now"
+      : preset !== "clear" && timeValue === preset;
+    button.classList.toggle("active", isActive);
+  });
+
+  const today = formatDateForInput(new Date());
+  const tomorrow = addDays(today, 1);
+  document.querySelectorAll("[data-date-preset]").forEach(button => {
+    const expected = button.dataset.datePreset === "tomorrow" ? tomorrow : today;
+    button.classList.toggle("active", $("taskDate").value === expected);
+  });
+}
+
+function getCurrentTimeForInput() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function getTaskDefaults() {
+  try {
+    return JSON.parse(window.localStorage.getItem(taskDefaultsStorageKey) || "{}") || {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function saveTaskDefaults(payload) {
+  try {
+    window.localStorage.setItem(taskDefaultsStorageKey, JSON.stringify({
+      category: payload.category,
+      urgency: payload.urgency
+    }));
+  } catch (_error) {
+    // The tracker remains usable when browser storage is unavailable.
+  }
 }
 
 async function handleTaskSubmit(event) {
@@ -724,6 +821,7 @@ async function handleTaskSubmit(event) {
 
   if (!payload.task_name) return showToast("Please enter a task name.", "error");
   const isEditing = Boolean(state.editingTaskId);
+  const keepOpen = !isEditing && event.submitter?.id === "saveAndAddAnotherBtn";
   const taskId = state.editingTaskId;
   setSaveBusy(true);
   try {
@@ -734,10 +832,22 @@ async function handleTaskSubmit(event) {
       result = await state.client.from("tasks").insert({ ...payload, user_id: state.user.id });
     }
     if (result.error) throw result.error;
-    closeTaskModal();
+
+    saveTaskDefaults(payload);
     state.archiveLoaded = false;
     await loadDashboard();
-    showToast(isEditing ? "Task updated." : "Task added.", "success");
+
+    if (keepOpen) {
+      $("taskName").value = "";
+      $("taskRemarks").value = "";
+      $("taskStatus").value = "Pending";
+      updateTaskPresetStates();
+      window.setTimeout(() => $("taskName").focus(), 30);
+      showToast("Task added. Ready for another.", "success");
+    } else {
+      closeTaskModal();
+      showToast(isEditing ? "Task updated." : "Task added.", "success");
+    }
   } catch (error) {
     showToast(error.message || "Could not save task.", "error", 6000);
   } finally {
@@ -747,7 +857,10 @@ async function handleTaskSubmit(event) {
 
 function setSaveBusy(isBusy) {
   $("saveTaskBtn").disabled = isBusy;
+  $("saveAndAddAnotherBtn").disabled = isBusy;
+  $("cancelTaskBtn").disabled = isBusy;
   $("saveTaskBtn").textContent = isBusy ? "Saving…" : "Save Task";
+  $("saveAndAddAnotherBtn").textContent = isBusy ? "Saving…" : "Save & Add Another";
 }
 
 async function moveTaskByDays(taskId, amount) {

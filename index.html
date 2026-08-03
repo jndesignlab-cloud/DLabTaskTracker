@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#08275d" />
   <title>DesignLab Task Tracker</title>
+  <script>
+    (() => {
+      const { pathname, search, hash } = window.location;
+      if (/\/index\.html?$/i.test(pathname)) {
+        window.history.replaceState(null, "", pathname.replace(/index\.html?$/i, "") + search + hash);
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -172,7 +180,7 @@
 
       <footer class="app-footer">
         <span id="footerOwner">DesignLab Creative Studio</span><span>•</span>
-        <span id="footerVersion">Version 2.1.0</span><span>•</span>
+        <span id="footerVersion">Version 2.2.0</span><span>•</span>
         <span id="syncStatus">Supabase: connecting…</span><span>•</span>
         <span id="lastRefreshed">Last refreshed: —</span>
       </footer>
@@ -188,9 +196,25 @@
     <div class="modal-card">
       <div class="modal-header"><div><p class="eyebrow">Task Details</p><h3 id="modalTitle">Add New Task</h3></div><button class="close-btn" id="closeModalBtn">×</button></div>
       <form id="taskForm" class="task-form">
-        <div class="form-grid">
-          <div class="form-group"><label for="taskDate">Date</label><input type="date" id="taskDate" required /></div>
-          <div class="form-group"><label for="taskTime">Time Slot</label><input type="time" id="taskTime" /></div>
+        <div class="form-grid schedule-grid">
+          <div class="form-group">
+            <label for="taskDate">Date</label>
+            <input type="date" id="taskDate" required />
+            <div class="preset-row" aria-label="Quick date options">
+              <button type="button" class="preset-btn" data-date-preset="today">Today</button>
+              <button type="button" class="preset-btn" data-date-preset="tomorrow">Tomorrow</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="taskTime">Time Slot</label>
+            <input type="time" id="taskTime" step="60" />
+            <div class="preset-row time-presets" aria-label="Quick time options">
+              <button type="button" class="preset-btn" data-time-preset="06:00">6:00 AM</button>
+              <button type="button" class="preset-btn now-preset" data-time-preset="now">NOW</button>
+              <button type="button" class="preset-btn" data-time-preset="18:00">6:00 PM</button>
+              <button type="button" class="preset-btn clear-preset" data-time-preset="clear">Clear</button>
+            </div>
+          </div>
         </div>
         <div class="form-group"><label for="taskName">Task Name</label><input type="text" id="taskName" maxlength="180" placeholder="Example: Finalize DesignLab client proposal" required /></div>
         <div class="form-grid">
@@ -199,7 +223,12 @@
         </div>
         <div class="form-group"><label for="taskStatus">Status</label><select id="taskStatus"></select></div>
         <div class="form-group"><label for="taskRemarks">Remarks</label><textarea id="taskRemarks" rows="4" maxlength="2000" placeholder="Add notes, links, deliverables, or reminders…"></textarea></div>
-        <div class="modal-actions"><button type="button" class="secondary-btn" id="cancelTaskBtn">Cancel</button><button type="submit" class="primary-btn" id="saveTaskBtn">Save Task</button></div>
+        <div class="form-shortcut-hint"><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to save</div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelTaskBtn">Cancel</button>
+          <button type="submit" class="secondary-btn save-another-btn" id="saveAndAddAnotherBtn">Save & Add Another</button>
+          <button type="submit" class="primary-btn" id="saveTaskBtn">Save Task</button>
+        </div>
       </form>
     </div>
   </div>

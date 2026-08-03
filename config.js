@@ -1,6 +1,6 @@
 window.DLAB_CONFIG = {
   appName: "DesignLab Task Tracker",
-  version: "2.1.0",
+  version: "2.2.0",
   owner: "DesignLab Creative Studio",
 
   // Browser-safe Supabase project credentials. Row Level Security must remain enabled.

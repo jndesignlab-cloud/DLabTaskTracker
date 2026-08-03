@@ -1,4 +1,4 @@
-# Upgrade Notes: v1.1.0 → v2.1.0
+# Upgrade Notes: v1.1.0 → v2.2.0
 
 ## Recommended rollout
 
@@ -6,7 +6,7 @@
 2. Run `supabase-schema.sql` in the supplied Supabase project.
 3. Create the single confirmed owner Auth user described in `README.md`.
 4. Disable new user signups and anonymous sign-ins after creating the owner.
-5. Deploy v2.1.0 to a temporary GitHub Pages folder or branch.
+5. Deploy v2.2.0 to a temporary GitHub Pages folder or branch.
 6. Sign in as `designlab` and test creating, editing, completing, and moving a sample task.
 7. Open `migrate.html`, preview the Google Sheets records, and run the migration.
 8. Compare task counts and spot-check completed, pending, dated, timed, and remarked tasks.
@@ -49,3 +49,14 @@ Tasks previously imported under an anonymous Supabase user will not automaticall
 ## Rollback
 
 Restore the previous GitHub Pages files and continue using the existing Google Sheets/Apps Script backend. The migration utility does not delete or modify the old sheet.
+
+
+## v2.2.0 quality-of-life patch
+
+- Added quick time buttons for 6:00 AM, the current local time, 6:00 PM, and clearing the time.
+- Added quick Today and Tomorrow date buttons.
+- Added Save & Add Another for rapid task entry without reopening the modal.
+- Remembered the last selected category and urgency in browser storage.
+- Added Ctrl/Cmd + Enter saving and Escape-to-close behavior.
+- Added clean-URL handling that removes `index.html` from the visible URL.
+- No Supabase schema changes are required when upgrading from v2.1.0.

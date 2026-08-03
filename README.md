@@ -1,6 +1,6 @@
 # DesignLab Task Tracker — Owner Login Edition
 
-**Version 2.1.0**
+**Version 2.2.0**
 
 A personal DesignLab task workspace with Supabase storage, one permanent owner account, persistent browser sessions, daily and weekly views, quick rescheduling, weekly summaries, an open-work queue, and a Google Sheets migration utility.
 
@@ -72,6 +72,16 @@ Upload these files to the repository root:
 
 The importer stores the old Task ID in `legacy_task_id` and uses an upsert, so rerunning it updates matching records instead of duplicating them.
 
+## Quality-of-life additions in v2.2.0
+
+- One-click time presets for **6:00 AM**, **NOW**, **6:00 PM**, and clearing the time
+- One-click task dates for **Today** and **Tomorrow**
+- **Save & Add Another** keeps the chosen date, time, category, and urgency for fast batch entry
+- The most recently used category and urgency are remembered on the current browser
+- `Ctrl`/`Cmd` + `Enter` saves the open task form
+- `Escape` closes task and queue dialogs
+- Direct visits ending in `index.html` are cleaned to the folder/root URL without reloading
+
 ## Main tracker features
 
 - Daily and weekly task modes
@@ -95,7 +105,13 @@ The importer stores the old Task ID in `legacy_task_id` and uses an upsert, so r
 - `D` — daily view
 - `W` — weekly view
 - `←` / `→` — previous or next period when not typing
+- `Ctrl`/`Cmd` + `Enter` — save the open task form
+- `Escape` — close the open dialog
 
 ## Recovery behavior
 
 Clearing browsing history alone normally does not remove the session. Clearing cookies or site data does. When that happens, sign in again with the same owner credentials and the existing tasks return from Supabase.
+
+## Clean URL behavior
+
+Deploy the tracker with `index.html` at the repository or folder root and link to the folder URL ending in `/`. If someone opens a URL ending in `index.html`, the tracker removes that filename from the visible address bar using the History API. No server rewrite or database change is required.
